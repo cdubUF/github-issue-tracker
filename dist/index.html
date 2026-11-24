@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A focused dashboard for reviewing and triaging GitHub issues." />
+  <title>Issue Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="export.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span class="brand-mark">◆</span><span>ISSUE DESK</span></a>
+    <nav class="tabs" aria-label="Workspace views">
+      <button class="tab active" data-view="issuesView">Issues</button>
+      <button class="tab" data-view="filesView">Files &amp; upload</button>
+      <button class="tab" data-view="settingsView">Settings</button>
+    </nav>
+    <div class="top-actions">
+      <span id="syncState" class="sync-state"><i></i> Demo workspace</span>
+      <button id="settingsBtn" class="icon-btn" aria-label="Repository settings">⚙</button>
+    </div>
+  </header>
+
+  <main id="issuesView" class="view active-view">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">YOUR WORKSPACE / <span id="repoCrumb">DEMO REPOSITORY</span></p>
+        <h1>Issues, without<br><em>the noise.</em></h1>
+        <p class="intro">A clean view of what needs attention. Connect any GitHub repository, shape your queue, and keep momentum.</p>
+      </div>
+      <button id="connectBtn" class="primary">Refresh repository <span>↗</span></button>
+    </section>
+
+    <section class="stats" aria-label="Issue summary">
+      <article><span class="stat-label">OPEN ISSUES</span><strong id="openCount">—</strong><small id="openDelta">Current queue</small></article>
+      <article><span class="stat-label">CLOSED</span><strong id="closedCount">—</strong><small>In loaded results</small></article>
+      <article><span class="stat-label">NEEDS OWNER</span><strong id="unassignedCount">—</strong><small>Ready for triage</small></article>
+      <article><span class="stat-label">AVG. AGE</span><strong id="ageCount">—</strong><small>Open issues</small></article>
+    </section>
+
+    <section class="workspace">
+      <aside class="filters">
+        <div class="filter-heading"><span>FILTER</span><button id="clearFilters">CLEAR</button></div>
+        <label class="filter-label">STATUS</label>
+        <div class="segmented" role="group" aria-label="Status filter">
+          <button class="active" data-state="all">All</button><button data-state="open">Open</button><button data-state="closed">Closed</button>
+        </div>
+
+        <label class="filter-label" for="labelFilter">LABEL</label>
+        <select id="labelFilter"><option value="">All labels</option></select>
+
+        <label class="filter-label" for="assigneeFilter">ASSIGNEE</label>
+        <select id="assigneeFilter"><option value="">Anyone</option><option value="none">Unassigned</option></select>
+
+        <label class="check"><input type="checkbox" id="hidePrs" checked><span>Hide pull requests</span></label>
+
+        <div class="saved-card">
+          <span class="saved-icon">⌘</span>
+          <strong>Your view is saved</strong>
+          <p>Filters and triage status stay on this device.</p>
+        </div>
+      </aside>
+
+      <div class="issue-panel">
+        <div class="toolbar">
+          <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search title, number, author…" aria-label="Search issues"></div>
+          <select id="sortSelect" aria-label="Sort issues"><option value="updated">Recently updated</option><option value="created">Newest created</option><option value="comments">Most discussed</option><option value="age">Oldest first</option></select>
+          <div class="export-actions"><button id="exportCsvBtn" class="secondary">CSV ↓</button><button id="exportMdBtn" class="secondary">Markdown ↓</button></div>
+        </div>
+        <div class="list-head"><span id="resultCount">0 ISSUES</span><span>TRIAGE</span></div>
+        <div id="issueList" class="issue-list" aria-live="polite"></div>
+        <div id="emptyState" class="empty" hidden><span>◇</span><h2>No issues found</h2><p>Try changing the filters or connect a different repository.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="filesView" class="view" hidden>
+    <section class="upload-hero">
+      <p class="eyebrow">BULK ISSUE CREATOR</p>
+      <h1>Files in.<br><em>Issues out.</em></h1>
+      <p class="intro">Upload a UTF-8 CSV with <code>title</code> and <code>body</code> columns, review every row, then create the issues in order.</p>
+    </section>
+    <section class="upload-layout">
+      <div class="upload-card">
+        <div class="step-label">01 / CHOOSE FILE</div>
+        <label id="dropZone" class="drop-zone" for="csvFile"><input id="csvFile" type="file" accept=".csv,text/csv" hidden><span class="drop-icon">+</span><strong>Choose a CSV file</strong><small>UTF-8 · required columns: title, body</small></label>
+        <p id="fileMessage" class="upload-message" role="status">No file selected.</p>
+        <div class="step-label">02 / GITHUB ACCESS</div>
+        <label class="field-label">Repository<input id="uploadRepo" value="Poiixen/senior_design" autocomplete="off" placeholder="owner/repository"></label>
+        <p id="uploadAccess" class="access-note">Connect GitHub in Settings to create issues.</p>
+        <button class="secondary" type="button" data-open-settings>GitHub settings</button>
+        <button id="createIssuesBtn" class="primary full" disabled>Create issues <span>↗</span></button>
+        <button id="retryIssuesBtn" class="secondary full retry" hidden>Retry failed rows</button>
+        <p id="uploadError" class="error" role="alert"></p>
+      </div>
+      <div class="preview-card">
+        <div class="preview-heading"><div><span class="step-label">03 / REVIEW</span><h2>Import preview</h2></div><strong id="uploadCount">0 rows</strong></div>
+        <div class="preview-table-wrap"><table class="preview-table"><thead><tr><th>#</th><th>Title</th><th>Body</th><th>Status</th></tr></thead><tbody id="uploadRows"><tr><td colspan="4" class="preview-empty">Select a CSV to preview it here.</td></tr></tbody></table></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="settingsView" class="view" hidden>
+    <section class="upload-hero">
+      <p class="eyebrow">WORKSPACE SETTINGS</p>
+      <h1>Your GitHub.<br><em>Connected.</em></h1>
+      <p class="intro">Connect with a fine-grained personal access token, choose a repository, and use the same access throughout Issue Desk.</p>
+    </section>
+    <section class="settings-layout">
+      <section class="settings-card" aria-labelledby="githubHeading">
+        <h2 id="githubHeading">GitHub connection</h2>
+        <p id="githubStatus" class="connection-status" role="status">Not connected. Public repositories can be loaded without a token.</p>
+        <form id="githubConnectForm">
+          <label class="field-label" for="githubToken">Fine-grained personal access token</label>
+          <div class="token-field"><input id="githubToken" type="password" autocomplete="off" spellcheck="false" required placeholder="github_pat_…" aria-describedby="tokenHelp"><button id="toggleToken" class="secondary" type="button" aria-pressed="false">Show</button></div>
+          <p id="tokenHelp" class="access-note">Kept only in this tab's memory. Reloading or disconnecting clears it. Access is limited to the repositories and permissions you choose on GitHub.</p>
+          <div class="settings-actions"><button id="githubConnectBtn" class="primary" type="submit">Connect GitHub</button><button id="githubDisconnectBtn" class="secondary" type="button" disabled>Disconnect</button></div>
+        </form>
+        <p id="githubError" class="error" role="alert"></p>
+        <details class="token-guide"><summary>How to create a token</summary><ol><li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub token settings</a> and choose an expiration.</li><li>Select the resource owner and the repositories to allow.</li><li>Grant <strong>Issues: read-only</strong> to load issues, or <strong>Issues: read and write</strong> to create issues from CSV. Repository metadata read access is included.</li><li>Generate the token, paste it above, and connect. Organization approval may be required.</li></ol><p>This static app connects using your token. GitHub sign-in through OAuth requires a registered app and a backend.</p></details>
+      </section>
+      <section class="settings-card" aria-labelledby="repositoryHeading">
+        <h2 id="repositoryHeading">Repository</h2>
+        <label class="field-label" for="githubRepoSelect">Repositories available to your connection</label>
+        <select id="githubRepoSelect" disabled><option value="">Connect GitHub to browse repositories</option></select>
+        <button id="refreshReposBtn" class="secondary retry" type="button" disabled>Refresh repositories</button>
+        <p id="repositoryStatus" class="access-note" role="status">You can also enter a public repository below.</p>
+        <form id="settingsRepoForm">
+          <label class="field-label">Repository<input id="settingsRepoInput" required value="Poiixen/senior_design" placeholder="owner/repository" autocomplete="off"></label>
+          <label class="check"><input id="settingsIncludeClosed" type="checkbox" checked><span>Load open and closed issues</span></label>
+          <button id="settingsLoadBtn" class="primary full" type="submit">Use repository</button>
+          <p id="settingsRepoError" class="error" role="alert"></p>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <footer><span>ISSUE DESK</span><span>DATA FROM GITHUB REST API · LOCAL PREFERENCES</span></footer>
+
+  <dialog id="connectDialog">
+    <form method="dialog" id="connectForm">
+      <button class="dialog-close" type="button" id="closeConnectDialog" aria-label="Close">×</button>
+      <p class="eyebrow">CONNECT TO GITHUB</p>
+      <h2>Choose a repository</h2>
+      <p class="dialog-copy">Load a public repository, or use your GitHub connection for private repositories. Manage access in Settings.</p>
+      <label>Repository <input id="repoInput" required value="Poiixen/senior_design" autocomplete="off"></label>
+      <button class="secondary" type="button" data-open-settings>GitHub settings</button>
+      <label class="check dialog-check"><input id="includeClosed" type="checkbox" checked><span>Load open and closed issues</span></label>
+      <p id="dialogError" class="error" role="alert"></p>
+      <button id="loadBtn" class="primary full" value="default">Load issues <span>↗</span></button>
+    </form>
+  </dialog>
+
+  <script src="github-settings.js"></script>
+  <script src="app.js"></script>
+  <script src="bulk-upload.js"></script>
+</body>
+</html>
